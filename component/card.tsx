@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+"use client"
+>>>>>>> 909d5cd (RTK Query Practice)
 import { counterSlice, decrease, increase } from "@/lib/features/counter/counterSlice"
 import { useAppSelector } from "@/lib/hooks"
 import { useDispatch } from "react-redux"

@@ -10,9 +10,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+<<<<<<< HEAD
         <StoreProvider >
           {children}
         </StoreProvider>
     </html>
   );
 }  
+=======
+      <body>
+        <StoreProvider>{children}</StoreProvider>
+      </body>
+    </html>
+  );
+}
+>>>>>>> 909d5cd (RTK Query Practice)
