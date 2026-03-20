@@ -1,6 +1,7 @@
 import StoreProvider from "./StoreProvider";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -14,7 +15,9 @@ export default function RootLayout({
     <html lang="en" className={cn("font-sans", geist.variable)}>
       <body>
         <StoreProvider>
-          {children}
+          <TooltipProvider>
+             {children}
+          </TooltipProvider>
         </StoreProvider>
       </body>
     </html>
