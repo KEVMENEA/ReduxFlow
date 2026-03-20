@@ -6,10 +6,6 @@ export interface CounterState {
   value: number
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 909d5cd (RTK Query Practice)
 // define initialState
 const initialState: CounterState = {
   value: 0,

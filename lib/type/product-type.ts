@@ -1,5 +1,5 @@
 export type Category = {
-  id: number;
+  id: number; // ✅ fix this
   name: string;
   slug: string;
   image: string;
@@ -7,8 +7,9 @@ export type Category = {
   updatedAt: string;
 };
 
+
 export type ProductResponse = {
-  id: number;
+  categoryId: number;
   title: string;
   slug: string;
   price: number;

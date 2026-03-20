@@ -1,28 +1,18 @@
-"use client";
-
 import Card from "@/component/card";
-<<<<<<< HEAD
+import ProductCard from "@/component/Product-Card";
 
-export default function Home() {
+
+export default function Page() {
   return (
-    <div>
-      <section>
-        <Card />
-      </section>
+    <div className="min-h-screen p-6 bg-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+        <ProductCard />
+        <ProductCard />
+        <ProductCard />
+        <ProductCard />
+        <ProductCard />
+        <ProductCard />
+      </div>
     </div>
   );
 }
-=======
-import ProductCard from "@/component/Product-Card";
-
-export default function PageHome() {
-  return (
-    <main>
-      <section>
-        <Card />
-        <ProductCard />
-      </section>
-    </main>
-  );
-}
->>>>>>> 909d5cd (RTK Query Practice)
