@@ -10,9 +10,9 @@ export const productApi = fakeStoreApi.injectEndpoints({
       providesTags: ['products'],
     }),
 
-    getProductById: builder.query<ProductResponse, number>({
-      query: (id) => `/products/${id}`,
-    }),
+    // getProductById: builder.query<ProductResponse, number>({
+    //   query: (id) => `/products/${id}`,
+    // }),
 
     addProduct: builder.mutation<ProductResponse, Partial<ProductResponse>>({
       query: (body) => ({
@@ -22,8 +22,32 @@ export const productApi = fakeStoreApi.injectEndpoints({
       }),
       invalidatesTags: ['products'],
     }),
+    updateProduct: builder.mutation<ProductResponse, { id: number; body: Partial<ProductResponse>}> ({
+        query: ({ id, body }) => ({
+        url: `/products/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "products",
+        { type: "products", id },
+      ],
+    }),
+     deleteProduct: builder.mutation<{ message: string }, number>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "products",
+        { type: "products", id },
+      ],
+    }),
   }),
 });
 
 
-export const { useGetProductsQuery, useGetProductByIdQuery, useAddProductMutation } = productApi;
+export const { useGetProductsQuery, 
+  useAddProductMutation ,
+  useUpdateProductMutation,
+  useDeleteProductMutation, } = productApi;

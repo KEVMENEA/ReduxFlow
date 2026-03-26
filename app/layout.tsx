@@ -2,6 +2,9 @@ import StoreProvider from "./StoreProvider";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import "./globals.css"
+import { toast } from "sonner";
+import { Toaster } from "sonner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -17,6 +20,7 @@ export default function RootLayout({
         <StoreProvider>
           <TooltipProvider>
              {children}
+             <Toaster position="top-right" richColors />
           </TooltipProvider>
         </StoreProvider>
       </body>
