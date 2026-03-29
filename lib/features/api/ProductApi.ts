@@ -1,18 +1,21 @@
 import { ProductResponse } from "@/lib/type/product-type";
 import { fakeStoreApi } from "./api";
-import { createApi } from "@reduxjs/toolkit/query";
-
 
 export const productApi = fakeStoreApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<ProductResponse[], void>({
       query: () => "/products",
-      providesTags: ['products'],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((product) => ({
+                type: "products" as const,
+                id: product.id,
+              })),
+              { type: "products" as const, id: "LIST" },
+            ]
+          : [{ type: "products" as const, id: "LIST" }],
     }),
-
-    // getProductById: builder.query<ProductResponse, number>({
-    //   query: (id) => `/products/${id}`,
-    // }),
 
     addProduct: builder.mutation<ProductResponse, Partial<ProductResponse>>({
       query: (body) => ({
@@ -20,34 +23,46 @@ export const productApi = fakeStoreApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ['products'],
+      invalidatesTags: [{ type: "products", id: "LIST" }],
     }),
-    updateProduct: builder.mutation<ProductResponse, { id: number; body: Partial<ProductResponse>}> ({
-        query: ({ id, body }) => ({
+
+    getProductById: builder.query<ProductResponse, number>({
+      query: (id) => `/products/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "products", id }],
+    }),
+
+    updateProduct: builder.mutation<
+      ProductResponse,
+      { id: number; body: Partial<ProductResponse> }
+    >({
+      query: ({ id, body }) => ({
         url: `/products/${id}`,
         method: "PUT",
         body,
       }),
       invalidatesTags: (_result, _error, { id }) => [
-        "products",
         { type: "products", id },
+        { type: "products", id: "LIST" },
       ],
     }),
-     deleteProduct: builder.mutation<{ message: string }, number>({
+
+    deleteProduct: builder.mutation<{ message: string }, number>({
       query: (id) => ({
         url: `/products/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: (_result, _error, id) => [
-        "products",
         { type: "products", id },
+        { type: "products", id: "LIST" },
       ],
     }),
   }),
 });
 
-
-export const { useGetProductsQuery, 
-  useAddProductMutation ,
+export const {
+  useGetProductsQuery,
+  useGetProductByIdQuery,
+  useAddProductMutation,
   useUpdateProductMutation,
-  useDeleteProductMutation, } = productApi;
+  useDeleteProductMutation,
+} = productApi;

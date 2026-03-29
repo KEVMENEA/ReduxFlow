@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -15,34 +16,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupText,
-  InputGroupTextarea,
-} from "@/components/ui/input-group";
+import { Textarea } from "../ui/textarea";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import {
   useAddProductMutation,
   useDeleteProductMutation,
+  useGetProductByIdQuery,
   useUpdateProductMutation,
 } from "@/lib/features/api/ProductApi";
-import { Textarea } from "../ui/textarea";
 
 const formSchema = z.object({
   title: z.string().min(3, "Product title must be at least 3 characters."),
@@ -54,6 +43,8 @@ const formSchema = z.object({
     .max(300, "Description must be at most 300 characters."),
   image: z.string().url("Please enter a valid image URL."),
 });
+
+type ProductFormValues = z.infer<typeof formSchema>;
 
 type ProductFormProps = {
   productId?: number;
@@ -68,8 +59,8 @@ const categories = [
 ];
 
 export function ProductForm({ productId }: ProductFormProps) {
-  const [isSuccess, setIsSuccess] = React.useState(false);
-  const [submittedProduct, setSubmittedProduct] = React.useState("");
+  const router = useRouter();
+  const isEditMode = Boolean(productId);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
@@ -82,102 +73,96 @@ export function ProductForm({ productId }: ProductFormProps) {
     },
   });
 
-  const [addProduct, { isLoading }] = useAddProductMutation();
+  const [addProduct, { isLoading: isCreating }] = useAddProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
 
-  async function onSubmit(values: ProductFormValues) {
-    setIsSuccess(false);
+  const { data: productData, isLoading: isProductLoading } =
+    useGetProductByIdQuery(productId!, { skip: !productId });
 
-    const payload = {
-      title: values.title,
-      price: Number(values.price),
-      categoryId: values.categoryId,
-      description: values.description,
-      images: [values.image],
-    };
+  React.useEffect(() => {
+    if (isEditMode && productData) {
+      form.reset({
+        title: productData.title ?? "",
+        price: productData.price ?? 0,
+        categoryId: String(
+          productData.category?.id ?? productData.categoryId ?? "",
+        ),
+        description: productData.description ?? "",
+        image: productData.images?.[0] ?? "",
+      });
+    }
+  }, [isEditMode, productData, form]);
+
+  async function onSubmit(values: ProductFormValues) {
     try {
-      if (productId) {
-        const res = await updateProduct({
-          id: productId,
-          body: payload,
+      if (isEditMode) {
+        await updateProduct({
+          id: productId!,
+          body: {
+            title: values.title,
+            price: Number(values.price),
+            categoryId: Number(values.categoryId),
+            description: values.description,
+            images: [values.image],
+          },
         }).unwrap();
 
-        console.log("update success", res);
-        setIsSuccess(true);
-        setSubmittedProduct(values.title);
+        toast.success("Product updated successfully");
 
-        toast.success(`Product "${values.title}" updated successfully!`);
-      } else {
-        const res = await addProduct(payload).unwrap();
-
-        console.log("insert success", res);
-        setIsSuccess(true);
-        setSubmittedProduct(values.title);
-
-        toast.success(`Product "${values.title}" inserted successfully!`);
-
-        form.reset({
-          title: "",
-          price: 0,
-          categoryId: "",
-          description: "",
-          image: "",
-        });
+        setTimeout(() => {
+          router.push("/dashboard/product");
+          router.refresh();
+        }, 800);
+        return;
       }
-    } catch (err) {
-      console.log("error", err);
-      setIsSuccess(false);
-
+    } catch (err: any) {
       toast.error(
-        productId ? "Failed to update product" : "Failed to insert product",
+        err?.data?.message ||
+          (isEditMode
+            ? "Failed to update product"
+            : "Failed to create product"),
       );
     }
-    async function handleDelete() {
-      if (!productId) return;
-
-      try {
-        const res = await deleteProduct(productId).unwrap();
-        console.log("delete success", res);
-
-        toast.success("Product deleted successfully");
-      } catch (err) {
-        console.log("delete error", err);
-        toast.error("Failed to delete product");
-      }
-    }
   }
+
   async function handleDelete() {
     if (!productId) return;
 
-    try {
-      const res = await deleteProduct(productId).unwrap();
-      console.log("delete success", res);
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this product?",
+    );
+    if (!confirmed) return;
 
+    try {
+      await deleteProduct(productId).unwrap();
       toast.success("Product deleted successfully");
-      setIsSuccess(true);
-      setSubmittedProduct("");
-      form.reset();
-    } catch (err) {
-      console.log("delete error", err);
-      toast.error("Failed to delete product");
+      router.push("/dashboard/product");
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err?.data?.message || "Failed to delete product");
     }
   }
 
+  if (isEditMode && isProductLoading) {
+    return <div className="p-6">Loading product...</div>;
+  }
+
   return (
-    <div className="p-4 md:p-2">
-      <h1 className="mb-4 text-2xl font-bold text-black">Dashboard Page </h1>
+    <div className="p-4 md:p-6">
+      <h1 className="mb-4 text-2xl font-bold text-black">
+        {isEditMode ? "Edit Product" : "Create Product"}
+      </h1>
 
       <Card className="w-full max-w-2xl rounded-2xl border bg-white shadow-sm">
         <CardHeader className="space-y-1 px-4 pt-5 md:px-6">
-          <CardTitle className="text-1xl font-semibold text-black md:text-2xl">
-            Submit Product
+          <CardTitle className="text-xl font-semibold text-black md:text-2xl">
+            {isEditMode ? "Update Product" : "Submit Product"}
           </CardTitle>
-
-          <CardDescription className="text-lg text-muted-foreground">
-            {isSuccess
-              ? `Product: "${submittedProduct}" inserted!`
-              : "Fill in the form to submit a new product."}
+          <CardDescription className="text-base text-muted-foreground">
+            {isEditMode
+              ? "Update old product data."
+              : "Fill in the form to create a new product."}
           </CardDescription>
         </CardHeader>
 
@@ -185,7 +170,7 @@ export function ProductForm({ productId }: ProductFormProps) {
           <form
             id="product-form"
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-8"
+            className="space-y-6"
           >
             <div className="space-y-2">
               <label
@@ -194,7 +179,6 @@ export function ProductForm({ productId }: ProductFormProps) {
               >
                 Product Title<span className="text-rose-500">*</span>
               </label>
-
               <Controller
                 name="title"
                 control={form.control}
@@ -204,8 +188,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                       {...field}
                       id="title"
                       placeholder="Enter product title"
-                      disabled={isLoading}
-                      className="h-14 rounded-xl border px-4 text-base"
+                      className="h-12 rounded-xl border px-4 text-base"
                     />
                     {fieldState.error && (
                       <p className="mt-2 text-sm text-red-500">
@@ -224,7 +207,6 @@ export function ProductForm({ productId }: ProductFormProps) {
               >
                 Price<span className="text-rose-500">*</span>
               </label>
-
               <Controller
                 name="price"
                 control={form.control}
@@ -235,8 +217,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                       id="price"
                       type="number"
                       placeholder="Enter product price"
-                      disabled={isLoading}
-                      className="h-14 rounded-xl border px-4 text-base"
+                      className="h-12 rounded-xl border px-4 text-base"
                     />
                     {fieldState.error && (
                       <p className="mt-2 text-sm text-red-500">
@@ -255,21 +236,15 @@ export function ProductForm({ productId }: ProductFormProps) {
               >
                 Category<span className="text-rose-500">*</span>
               </label>
-
               <Controller
                 name="categoryId"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <div>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="h-14 w-full rounded-xl px-4 text-base">
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className="h-12 w-full rounded-xl px-4 text-base">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
-
                       <SelectContent>
                         {categories.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
@@ -278,7 +253,6 @@ export function ProductForm({ productId }: ProductFormProps) {
                         ))}
                       </SelectContent>
                     </Select>
-
                     {fieldState.error && (
                       <p className="mt-2 text-sm text-red-500">
                         {fieldState.error.message}
@@ -294,9 +268,8 @@ export function ProductForm({ productId }: ProductFormProps) {
                 htmlFor="description"
                 className="text-base font-semibold text-black"
               >
-                Description<span className="text-rose-300">*</span>
+                Description<span className="text-rose-500">*</span>
               </label>
-
               <Controller
                 name="description"
                 control={form.control}
@@ -305,17 +278,14 @@ export function ProductForm({ productId }: ProductFormProps) {
                     <Textarea
                       {...field}
                       id="description"
+                      rows={5}
                       placeholder="Write product description"
-                      disabled={isLoading}
-                      rows={4}
-                      className="min-h-[180px] rounded-xl border px-4 py-3 text-base resize-none"
+                      className="min-h-[160px] rounded-xl border px-4 py-3 text-base resize-none"
                     />
-
                     <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
                       <span>Add short details about the product.</span>
                       <span>{field.value?.length ?? 0}/300</span>
                     </div>
-
                     {fieldState.error && (
                       <p className="mt-2 text-sm text-red-500">
                         {fieldState.error.message}
@@ -333,7 +303,6 @@ export function ProductForm({ productId }: ProductFormProps) {
               >
                 Image URL<span className="text-rose-500">*</span>
               </label>
-
               <Controller
                 name="image"
                 control={form.control}
@@ -343,8 +312,7 @@ export function ProductForm({ productId }: ProductFormProps) {
                       {...field}
                       id="image"
                       placeholder="https://example.com/product-image.jpg"
-                      disabled={isLoading}
-                      className="h-14 rounded-xl border px-4 text-base"
+                      className="h-12 rounded-xl border px-4 text-base"
                     />
                     {fieldState.error && (
                       <p className="mt-2 text-sm text-red-500">
@@ -357,14 +325,14 @@ export function ProductForm({ productId }: ProductFormProps) {
             </div>
           </form>
         </CardContent>
+
         <CardFooter className="flex gap-2 border-t bg-muted/10 px-4 py-3 md:px-6">
-          {productId && (
+          {isEditMode && (
             <Button
               type="button"
               variant="destructive"
-              className="h-9 rounded-lg px-4 text-sm"
               onClick={handleDelete}
-              disabled={isDeleting || isLoading || isUpdating}
+              disabled={isDeleting || isCreating || isUpdating}
             >
               {isDeleting ? "Deleting..." : "Delete Product"}
             </Button>
@@ -373,13 +341,8 @@ export function ProductForm({ productId }: ProductFormProps) {
           <Button
             type="button"
             variant="outline"
-            className="h-9 rounded-lg px-4 text-sm"
-            onClick={() => {
-              form.reset();
-              setIsSuccess(false);
-              setSubmittedProduct("");
-            }}
-            disabled={isLoading || isUpdating || isDeleting}
+            onClick={() => form.reset()}
+            disabled={isDeleting || isCreating || isUpdating}
           >
             Reset
           </Button>
@@ -387,14 +350,13 @@ export function ProductForm({ productId }: ProductFormProps) {
           <Button
             type="submit"
             form="product-form"
-            className="rounded-xl px-6"
-            disabled={isLoading || isUpdating || isDeleting}
+            disabled={isDeleting || isCreating || isUpdating}
           >
-            {productId
+            {isEditMode
               ? isUpdating
                 ? "Updating..."
                 : "Update Product"
-              : isLoading
+              : isCreating
                 ? "Creating..."
                 : "Create Product"}
           </Button>
